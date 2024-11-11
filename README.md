@@ -22,19 +22,18 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
 ### Category Management
 
 - **Create Category**
-  - **Endpoint**: `POST /categories`
+  - **Endpoint**: `POST /category`  [http://localhost:8080/api/category]
   - **Description**: Creates a new product category.
   - **Request Body**:
     ```json
     {
-      "category_name": "Electronics",
-      "description": "Category for all electronics"
+      "categoryName": "Electronics"
     }
     ```
   - **Response**: Returns a success message or error.
 
 - **Get All Categories**
-  - **Endpoint**: `GET /categories`
+  - **Endpoint**: `GET /categories` [http://localhost:8080/api/categories]
   - **Description**: Retrieves all categories along with their subcategories.
   - **Response**:
     ```json
@@ -42,16 +41,28 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
       {
         "category_name": "Electronics",
         "subcategories": [
-          {"name": "Smartphones"},
-          {"name": "Laptops"}
+          {
+             "sub_category_id": 5,
+             "parent_category_name": "Electronics",
+             "sub_category_name": "Mobile"
+          },
+          {
+             "sub_category_id": 5,
+             "parent_category_name": "Electronics",
+             "sub_category_name": "Laptops"
+          },
         ]
       }
     ]
     ```
 
 - **Get Category by ID**
-  - **Endpoint**: `GET /categories/:id`
+  - **Endpoint**: `GET /category` [http://localhost:8080/api/category]
   - **Description**: Retrieves a specific category by its ID, along with its subcategories.
+  - - **Response**:
+    - {
+        "categoryName":"Electronics"
+      }
   - **Response**:
     ```json
     {
@@ -64,7 +75,7 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
     ```
 
 - **Update Category**
-  - **Endpoint**: `PUT /categories/:id`
+  - **Endpoint**: `PUT /categories`  [http://localhost:8080/api/categories]
   - **Description**: Updates an existing category by its ID.
   - **Request Body**:
     ```json
@@ -76,14 +87,18 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
   - **Response**: Returns the updated category.
 
 - **Delete Category**
-  - **Endpoint**: `DELETE /categories/:id`
+  - **Endpoint**: `DELETE /category` [http://localhost:8080/api/category]
   - **Description**: Deletes a category by its ID, and also deletes any associated subcategories.
+  - -**RequestBody**
+       {
+         "categoryName": "Electronics"
+    }
   - **Response**: Returns a success message.
 
 ### Subcategory Management
 
 - **Create Subcategory**
-  - **Endpoint**: `POST /subcategories`
+  - **Endpoint**: `POST /subcategory` [http://localhost:8080/api/subcategory]
   - **Description**: Creates one or more subcategories under a parent category.
   - **Request Body**:
     ```json
@@ -97,7 +112,7 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
 ### Product Management
 
 - **Create Product**
-  - **Endpoint**: `POST /products`
+  - **Endpoint**: `POST /products`  [http://localhost:8080/api/products]
   - **Description**: Creates a new product.
   - **Request Body**:
     ```json
@@ -112,7 +127,7 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
   - **Response**: Returns a success message.
 
 - **Get All Products**
-  - **Endpoint**: `GET /products`
+  - **Endpoint**: `GET /products` [http://localhost:8080/api/products]
   - **Description**: Retrieves all products.
   - **Response**:
     ```json
@@ -127,8 +142,12 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
     ```
 
 - **Get Product by ID**
-  - **Endpoint**: `GET /products/:id`
+  - **Endpoint**: `GET /product` [http://localhost:8080/api/product]
   - **Description**: Retrieves a specific product by its ID.
+  - **Request**
+        {
+          "productName":"breakwire"
+        }
   - **Response**:
     ```json
     {
@@ -140,11 +159,12 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
     ```
 
 - **Update Product**
-  - **Endpoint**: `PUT /products/:id`
+  - **Endpoint**: `PUT /product` [http://localhost:8080/api/product]
   - **Description**: Updates the details of an existing product.
   - **Request Body**:
     ```json
     {
+       "productName":"iiiii",
       "new_product_name": "iPhone 13 Pro",
       "description": "Latest Apple iPhone Pro",
       "price": 1099.99,
@@ -154,8 +174,12 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
   - **Response**: Returns the updated product.
 
 - **Delete Product**
-  - **Endpoint**: `DELETE /products/:id`
+  - **Endpoint**: `DELETE /product` [http://localhost:8080/api/product]
   - **Description**: Deletes a product by its ID.
+  - **Request**
+        {
+            "productName":"yyyyyyyy"
+        }
   - **Response**: Returns a success message.
 
 ### Order Management
