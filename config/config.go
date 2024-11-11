@@ -1,8 +1,7 @@
 package config
 
 import (
-	"ecommerce-api/models"
-	"log"
+	"fmt"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -11,13 +10,12 @@ import (
 var DB *gorm.DB
 
 func ConnectDB() {
-	dsn := "host=localhost user=your_user password=your_password dbname=your_db port=5432 sslmode=disable"
+	// PostgreSQL connection string (adjust the details for your setup)
+	dsn := "host=localhost user=postgres password=Monday@01 dbname=E-Commerce port=5432 sslmode=disable"
 	var err error
+	// Open a connection to the PostgreSQL database using GORM
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		fmt.Println(err)
 	}
-
-	DB.AutoMigrate(&models.Category{}, &models.Product{}, &models.Variant{}, &models.Order{}, &models.OrderItem{})
-	log.Println("Database connected and migrated!")
 }

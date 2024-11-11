@@ -1,93 +1,135 @@
 package controllers
 
 import (
-	"E-COMMERCEAPI/config"
-	"E-COMMERCEAPI/models"
+	"ecommerce/config"
+	"ecommerce/error"
+	"ecommerce/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetVariants retrieves all variants for a given product ID
 func GetVariants(c *gin.Context) {
+	log.Println("GetVariants Called")
+
 	var variants []models.Variant
-	productId := c.Param("product_id")
 
 	// Retrieve the variants for a specific product by product ID
-	if err := config.DB.Where("product_id = ?", productId).Find(&variants).Error; err != nil {
+	if err := config.DB.Find(&variants).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, variants)
 }
 
-// GetVariantById retrieves a single variant by its ID
 func GetVariantById(c *gin.Context) {
-	var variant models.Variant
-	variantId := c.Param("id")
+	log.Println("GetVariantById Called")
 
+	var input models.Variant
+	// Bind incoming JSON to input struct
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
+		return
+	}
+	var variant models.Variant
 	// Fetch the variant by ID
-	if err := config.DB.First(&variant, variantId).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Variant not found"})
+	if err := config.DB.Where("productname = ?", input.Productname).First(&variant).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "variant not found"})
 		return
 	}
 	c.JSON(http.StatusOK, variant)
 }
 
-// CreateVariant creates a new variant for a given product
 func CreateVariant(c *gin.Context) {
-	var variant models.Variant
-	if err := c.ShouldBindJSON(&variant); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	log.Println("CreateVariant Called")
+
+	var input models.Variant
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
 		return
 	}
 
-	// Ensure product exists before creating the variant
-	var product models.Product
-	if err := config.DB.First(&product, variant.ProductID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+	if err := validate.Struct(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Failed in validating the input", error.ErrInvalidRequest)
 		return
 	}
 
-	// Save the variant
-	if err := config.DB.Create(&variant).Error; err != nil {
+	if err := config.DB.Create(&input).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create variant"})
 		return
 	}
-	c.JSON(http.StatusCreated, variant)
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Variant created successfully"})
 }
 
-// UpdateVariant updates an existing variant by its ID
 func UpdateVariant(c *gin.Context) {
+	log.Println("UpdateVariant Called")
+
+	var input models.VariantUpdate
+
+	// Bind the input JSON
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
+		return
+	}
+
+	// Find the existing product
 	var variant models.Variant
-	variantId := c.Param("id")
-
-	// Check if the variant exists
-	if err := config.DB.First(&variant, variantId).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Variant not found"})
+	if err := config.DB.Where("variantid = ?", input.VariantID).First(&variant).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "variant not found"})
 		return
 	}
 
-	// Bind the request data to the variant
-	if err := c.ShouldBindJSON(&variant); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
+	// Prepare the update data
+	updateData := map[string]interface{}{}
+	if input.Size != 0 {
+		updateData["size"] = input.Size
+	}
+	if input.Color != "" {
+		updateData["color"] = input.Color
+	}
+	if input.Price != 0 {
+		updateData["price"] = input.Price
+	}
+	if input.Stock != 0 {
+		updateData["stock"] = input.Stock
 	}
 
-	// Save the updated variant
-	if err := config.DB.Save(&variant).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update variant"})
-		return
+	// Perform the update using the Model and Updates methods
+	if len(updateData) > 0 {
+		if err := config.DB.Model(&variant).Where("variantid = ?", input.VariantID).Updates(updateData).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update variant"})
+			return
+		}
 	}
+
+	// Return the updated product
 	c.JSON(http.StatusOK, variant)
 }
 
-// DeleteVariant deletes a variant by its ID
 func DeleteVariant(c *gin.Context) {
-	variantId := c.Param("id")
-	if err := config.DB.Delete(&models.Variant{}, variantId).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete variant"})
+	log.Println("DeleteVariant Called")
+
+	var input models.Variant
+
+	// Bind incoming JSON to input struct
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Variant deleted successfully"})
+
+	// Use Where clause to delete category by CategoryName and its subcategories
+	if err := config.DB.Where("variantid = ?", input.VariantID).Delete(&models.Variant{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Variant deleted"})
 }

@@ -1,82 +1,137 @@
 package controllers
 
 import (
-	"E-COMMERCEAPI/config"
-	"E-COMMERCEAPI/models"
+	"ecommerce/config"
+	"ecommerce/error"
+	"ecommerce/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetProducts retrieves all products with their variants
 func GetProducts(c *gin.Context) {
+	log.Println("GetProducts Called")
+
 	var products []models.Product
-	if err := config.DB.Preload("Variants").Find(&products).Error; err != nil {
+
+	if err := config.DB.Find(&products).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, products)
 }
 
-// GetProductById retrieves a single product by its ID, including its variants
-func GetProductById(c *gin.Context) {
-	var product models.Product
-	productId := c.Param("id")
+func GetProductByID(c *gin.Context) {
+	log.Println("GetProductByID Called")
 
-	if err := config.DB.Preload("Variants").First(&product, productId).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+	var input models.Product
+
+	// Bind incoming JSON to input struct
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
+		return
+	}
+	var product models.Product
+	// Fetch category by CategoryName
+	if err := config.DB.Where("product_name = ?", input.ProductName).First(&product).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 		return
 	}
 	c.JSON(http.StatusOK, product)
 }
 
-// CreateProduct creates a new product with variants
 func CreateProduct(c *gin.Context) {
+	log.Println("CreateProduct Called")
+
 	var product models.Product
+
+	// Bind incoming JSON to product struct
 	if err := c.ShouldBindJSON(&product); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
 		return
 	}
 
-	// Save the product and its variants
+	// Validate the input
+	if err := validate.Struct(&product); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Failed in validating the input", error.ErrInvalidRequest)
+		return
+	}
+
+	// Save to database
 	if err := config.DB.Create(&product).Error; err != nil {
+		log.Println("Error while saving product:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
 	}
-	c.JSON(http.StatusCreated, product)
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Product created successfully"})
 }
 
-// UpdateProduct updates an existing product by its ID
 func UpdateProduct(c *gin.Context) {
-	var product models.Product
-	productId := c.Param("id")
+	log.Println("UpdateProduct Called")
 
-	// Check if the product exists
-	if err := config.DB.First(&product, productId).Error; err != nil {
+	var input models.UpdateProductInput
+
+	// Bind the input JSON
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
+		return
+	}
+
+	// Find the existing product
+	var product models.Product
+	if err := config.DB.Where("product_name = ?", input.ProductName).First(&product).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
 	}
 
-	// Bind the request data to the product
-	if err := c.ShouldBindJSON(&product); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
+	// Prepare the update data
+	updateData := map[string]interface{}{}
+	if input.NewProductName != "" {
+		updateData["product_name"] = input.NewProductName
+	}
+	if input.Description != "" {
+		updateData["description"] = input.Description
+	}
+	if input.ProductCategoryName != "" {
+		updateData["product_category_name"] = input.ProductCategoryName
 	}
 
-	// Save the updated product
-	if err := config.DB.Save(&product).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
-		return
+	// Perform the update using the Model and Updates methods
+	if len(updateData) > 0 {
+		if err := config.DB.Model(&product).Where("product_name = ?", input.ProductName).Updates(updateData).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
+			return
+		}
 	}
+
+	// Return the updated product
 	c.JSON(http.StatusOK, product)
 }
 
-// DeleteProduct deletes a product by its ID
 func DeleteProduct(c *gin.Context) {
-	productId := c.Param("id")
-	if err := config.DB.Delete(&models.Product{}, productId).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
+	log.Println("DeleteProduct Called")
+
+	var input models.Product
+
+	// Bind incoming JSON to input struct
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
+
+	// Use Where clause to delete category by CategoryName and its subcategories
+	if err := config.DB.Where("product_name = ?", input.ProductName).Delete(&models.Product{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Product deleted"})
 }

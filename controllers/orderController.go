@@ -1,106 +1,104 @@
 package controllers
 
 import (
-	"E-COMMERCEAPI/config"
-	"E-COMMERCEAPI/models"
+	"ecommerce/config"
+	"ecommerce/error"
+	"ecommerce/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-// GetOrders retrieves all orders with their items
 func GetOrders(c *gin.Context) {
+	log.Println("GetOrders Called")
+
 	var orders []models.Order
 	if err := config.DB.Preload("Items").Find(&orders).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		models.CreateErrorResponse(c, http.StatusInternalServerError, "Failed to get order", error.INTERNAL_ERROR)
 		return
 	}
-	c.JSON(http.StatusOK, orders)
+	models.CreateSuccessResponse(c, http.StatusOK, "", orders)
 }
 
-// GetOrderById retrieves a single order by its ID
-func GetOrderById(c *gin.Context) {
-	var order models.Order
-	orderId := c.Param("id")
-
-	if err := config.DB.Preload("Items").First(&order, orderId).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
-		return
-	}
-	c.JSON(http.StatusOK, order)
-}
-
-// CreateOrder creates a new order and manages inventory
 func CreateOrder(c *gin.Context) {
-	var order models.Order
-	if err := c.ShouldBindJSON(&order); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	log.Println("CreateOrder Called")
+
+	var request models.OrderRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusBadRequest, "Invalid input", error.ErrInvalidRequest)
 		return
 	}
 
-	// Begin transaction for order creation and inventory update
-	tx := config.DB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	orderTotal := 0.0
-
-	// Process each item in the order
-	for _, item := range order.Items {
+	// Calculate total amount and verify stock
+	totalAmount := 0.0
+	for _, item := range request.Items {
+		var product models.Product
 		var variant models.Variant
-
-		// Check if variant exists
-		if err := tx.First(&variant, item.VariantID).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusNotFound, gin.H{"error": "Variant not found"})
+		if err := config.DB.First(&product, item.Productid).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				models.CreateErrorResponse(c, http.StatusBadRequest, "Product not found", error.PRODUCT_NOT_FOUND)
+			} else {
+				models.CreateErrorResponse(c, http.StatusInternalServerError, "Database error", error.INTERNAL_ERROR)
+			}
+			return
+		}
+		if err := config.DB.First(&variant, item.Variantid).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				models.CreateErrorResponse(c, http.StatusBadRequest, "Variant not found", error.VARIANT_NOT_FOUND)
+			} else {
+				models.CreateErrorResponse(c, http.StatusInternalServerError, "Database error", error.INTERNAL_ERROR)
+			}
 			return
 		}
 
-		// Check inventory availability
-		if variant.Quantity < item.Quantity {
-			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient stock for variant"})
+		// Check stock
+		if variant.Stock < item.Quantity {
+			models.CreateErrorResponse(c, http.StatusBadRequest, "Not enough stock for product", error.NOT_ENOUGH_STOCK)
 			return
 		}
 
-		// Update inventory quantity
-		variant.Quantity -= item.Quantity
-		if err := tx.Save(&variant).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update inventory"})
+		// Update stock (Decrement stock for each item)
+		variant.Stock -= item.Quantity
+		if err := config.DB.Save(&variant).Error; err != nil {
+			models.CreateErrorResponse(c, http.StatusInternalServerError, "Failed to update stock", error.INTERNAL_ERROR)
 			return
 		}
 
-		// Calculate item price based on quantity and variant's price
-		itemPrice := float64(item.Quantity) * variant.MRP
-		item.Price = itemPrice
-		orderTotal += itemPrice
+		// Add price to total amount
+		totalAmount += item.Price * float64(item.Quantity)
 	}
 
-	// Set order total and status
-	order.OrderTotal = orderTotal
-	order.Status = "Accepted"
+	// Create Order
+	order := models.Order{
+		Userid:          request.UserId,
+		Totalamount:     float32(totalAmount),
+		Shippingaddress: request.ShippingAddress,
+		// Status:          "Pending",
+	}
 
-	// Save the order and associated items in the database
-	if err := tx.Create(&order).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+	if err := config.DB.Create(&order).Error; err != nil {
+		log.Println("error", err)
+		models.CreateErrorResponse(c, http.StatusInternalServerError, "Failed to create order", error.INTERNAL_ERROR)
 		return
 	}
 
-	tx.Commit()
-	c.JSON(http.StatusCreated, order)
-}
-
-// DeleteOrder deletes an order by its ID
-func DeleteOrder(c *gin.Context) {
-	orderId := c.Param("id")
-	if err := config.DB.Delete(&models.Order{}, orderId).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete order"})
-		return
+	// Create Order Items
+	for _, item := range request.Items {
+		orderItem := models.OrderItem{
+			Orderid:   order.Orderid,
+			Productid: item.Productid,
+			Variantid: item.Variantid,
+			Quantity:  item.Quantity,
+			Price:     item.Price,
+		}
+		if err := config.DB.Create(&orderItem).Error; err != nil {
+			log.Println("error", err)
+			models.CreateErrorResponse(c, http.StatusInternalServerError, "Failed to create order item", error.INTERNAL_ERROR)
+			return
+		}
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
+	models.CreateSuccessResponse(c, http.StatusOK, "Order placed successfully", order.Orderid)
 }

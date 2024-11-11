@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"E-COMMERCEAPI/controllers"
-	"E-COMMERCEAPI/middleware"
+	"ecommerce/controllers"
+	"ecommerce/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,34 +12,36 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// Public route for login (authentication)
 	api.POST("/login", controllers.Login)
+	api.POST("/register", controllers.Register)
 
-	// Secured routes (require JWT authentication)
-	api.Use(middleware.JWTAuthMiddleware())
+	// Public routes for Category
+	api.GET("/categories", controllers.GetCategories)       // Get all categories
+	api.POST("/category", controllers.CreateCategory)       // Create a new category
+	api.POST("/subcategory", controllers.CreateSubCategory) // Create a new category
+	api.GET("/category", controllers.GetCategoryByID)       // Get a category by ID
+	api.PUT("/categories", controllers.UpdateCategory)      // Update a category by ID
+	api.DELETE("/category", controllers.DeleteCategory)     // Delete a category by ID
+
+	// Public routes for Product
+	api.GET("/products", controllers.GetProducts)     // Get all products
+	api.POST("/products", controllers.CreateProduct)  // Create a new product
+	api.GET("/product", controllers.GetProductByID)   // Get a product by ID
+	api.PUT("/product", controllers.UpdateProduct)    // Update a product by ID
+	api.DELETE("/product", controllers.DeleteProduct) // Delete a product by ID
+
+	// Public routes for Variant
+	api.GET("/variants", controllers.GetVariants)     // Get all variants
+	api.POST("/variant", controllers.CreateVariant)   // Create a new variant
+	api.GET("/variant", controllers.GetVariantById)   // Get a variant by ID
+	api.PUT("/variant", controllers.UpdateVariant)    // Update a variant by ID
+	api.DELETE("/variant", controllers.DeleteVariant) // Delete a variant by ID
+
+	// Order routes (JWT protected)
+	orderRoutes := api.Group("/orders")
+	orderRoutes.Use(middleware.JWTAuthMiddleware())
 	{
-		// Category routes
-		api.GET("/categories", controllers.GetCategories)         // Get all categories
-		api.POST("/categories", controllers.CreateCategory)       // Create a new category
-		api.GET("/categories/:id", controllers.GetCategoryByID)   // Get a category by ID
-		api.PUT("/categories/:id", controllers.UpdateCategory)    // Update a category by ID
-		api.DELETE("/categories/:id", controllers.DeleteCategory) // Delete a category by ID
-
-		// Product routes
-		api.GET("/products", controllers.GetProducts)          // Get all products
-		api.POST("/products", controllers.CreateProduct)       // Create a new product
-		api.GET("/products/:id", controllers.GetProductByID)   // Get a product by ID
-		api.PUT("/products/:id", controllers.UpdateProduct)    // Update a product by ID
-		api.DELETE("/products/:id", controllers.DeleteProduct) // Delete a product by ID
-
-		// Variant routes
-		api.GET("/variants", controllers.GetVariants)          // Get all variants
-		api.POST("/variants", controllers.CreateVariant)       // Create a new variant
-		api.GET("/variants/:id", controllers.GetVariantByID)   // Get a variant by ID
-		api.PUT("/variants/:id", controllers.UpdateVariant)    // Update a variant by ID
-		api.DELETE("/variants/:id", controllers.DeleteVariant) // Delete a variant by ID
-
-		// Order routes
-		api.POST("/orders", controllers.CreateOrder)     // Create a new order
-		api.GET("/orders/:id", controllers.GetOrderByID) // Get an order by ID
-		api.GET("/orders", controllers.GetOrders)        // Get all orders
+		orderRoutes.POST("/create", controllers.CreateOrder) // Create a new order
+		// orderRoutes.GET("/:id", controllers.GetOrderByID) // Get an order by ID
+		orderRoutes.GET("/getorders", controllers.GetOrders) // Get all orders
 	}
 }
