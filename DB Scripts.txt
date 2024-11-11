@@ -1,0 +1,124 @@
+----Create DB
+
+CREATE DATABASE "E-Commerce";
+
+---Table Scripts
+
+CREATE TABLE IF NOT EXISTS public.users
+(
+    id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+    email text COLLATE pg_catalog."default" NOT NULL,
+    password text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT users_email_key UNIQUE (email)
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.category
+(
+    category_id integer NOT NULL DEFAULT nextval('category_category_id_seq'::regclass),
+    category_name text COLLATE pg_catalog."default",
+    CONSTRAINT category_pkey PRIMARY KEY (category_id),
+    CONSTRAINT ukey_cpname UNIQUE (category_name)
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.subcategory
+(
+    sub_category_id integer NOT NULL DEFAULT nextval('subcategory_sub_category_id_seq'::regclass),
+    sub_category_name text COLLATE pg_catalog."default",
+    parent_category_name text COLLATE pg_catalog."default",
+    CONSTRAINT subcategory_pkey PRIMARY KEY (sub_category_id),
+    CONSTRAINT ukey_scname UNIQUE (sub_category_name),
+    CONSTRAINT parent_category_name_fkey FOREIGN KEY (parent_category_name)
+        REFERENCES public.category (category_name) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.product
+(
+    product_id integer NOT NULL DEFAULT nextval('products_productid_seq'::regclass),
+    product_name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    product_category_name character varying(50) COLLATE pg_catalog."default",
+    createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT products_pkey PRIMARY KEY (product_id),
+    CONSTRAINT pn_uk UNIQUE (product_name),
+    CONSTRAINT product_category_name_fkey FOREIGN KEY (product_category_name)
+        REFERENCES public.category (category_name) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.variants
+(
+    variantid integer NOT NULL DEFAULT nextval('variants_variantid_seq'::regclass),
+    productname text COLLATE pg_catalog."default" NOT NULL,
+    sku character varying(50) COLLATE pg_catalog."default",
+    size integer,
+    color character varying(20) COLLATE pg_catalog."default",
+    price numeric(10,2),
+    stock integer DEFAULT 0,
+    createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT variants_pkey PRIMARY KEY (variantid),
+    CONSTRAINT pn_fk FOREIGN KEY (productname)
+        REFERENCES public.product (product_name) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT variants_price_check CHECK (price >= 0::numeric),
+    CONSTRAINT variants_stock_check CHECK (stock >= 0)
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.orders
+(
+    orderid integer NOT NULL DEFAULT nextval('orders_orderid_seq'::regclass),
+    status character varying(50) COLLATE pg_catalog."default",
+    userid integer NOT NULL,
+    totalamount numeric(10,2) DEFAULT 0.00,
+    shippingaddress text COLLATE pg_catalog."default",
+    createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT orders_pkey PRIMARY KEY (orderid)
+);
+
+------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.orderitems
+(
+    orderitemid integer NOT NULL DEFAULT nextval('orderitems_orderitemid_seq'::regclass),
+    orderid integer NOT NULL,
+    productid integer NOT NULL,
+    variantid integer NOT NULL,
+    quantity integer,
+    price numeric(10,2),
+    totalprice numeric(10,2) GENERATED ALWAYS AS (((quantity)::numeric * price)) STORED,
+    createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT orderitems_pkey PRIMARY KEY (orderitemid),
+    CONSTRAINT orderitem_ukey UNIQUE (orderid, productid, variantid),
+    CONSTRAINT fk_order FOREIGN KEY (orderid)
+        REFERENCES public.orders (orderid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_product FOREIGN KEY (productid)
+        REFERENCES public.product (product_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT fk_variant FOREIGN KEY (variantid)
+        REFERENCES public.variants (variantid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT orderitems_price_check CHECK (price >= 0::numeric),
+    CONSTRAINT orderitems_quantity_check CHECK (quantity > 0)
+);
