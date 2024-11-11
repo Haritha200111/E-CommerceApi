@@ -71,7 +71,7 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer 9KoFUUqMK16peBVj4pIN03cU",
+						"value": "Bearer ***",
 						"type": "text"
 					}
 				],
@@ -110,7 +110,7 @@
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIzIiwiZXhwIjoxNzMxMzAwNDY5fQ.7d5ybpnabuVFve7mT2j9KoFUUqMK16peBVj4pIN03cU",
+						"value": "Bearer ***",
 						"type": "text"
 					}
 				],
