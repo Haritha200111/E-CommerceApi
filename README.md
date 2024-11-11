@@ -12,6 +12,7 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
    5. [Variant Management](#variant-management)
 2. [Setup](#setup)
 3. [Running the API](#running-the-api)
+4. Testing with Postman
 
 
 ---
@@ -233,17 +234,42 @@ This is a REST API for an ecommerce platform built using Go and Gin framework, w
 - GORM (for ORM operations)
 - Gin (web framework)
 
+### Clone Repository
+
+git clone https://github.com/Haritha200111/E-CommerceApi/tree/development
+cd repository
+
+
 ### Installing Dependencies
 
 To install the necessary dependencies, run:
+------go mod tidy
 
+### Configuration
 
-go mod tidy
+In the Go code, update the database connection details (URL, path, username, and password) as needed.
 
+## DB Setup
+
+Create tables in PostgreSQL using the DB scripts in the repo.
 
 ##  Running the API
 ###  Starting the Server
 ###  To start the server, run:
+------go run main.go
 
 
-go run main.go
+
+
+## Testing with Postman
+### Use the Postman collection provided in the repository to test the API endpoints:
+
+### Import the Postman Collection:
+Go to File > Import in Postman.
+Select the E-Commerce APIs.postman_collection.json file located in the repository.
+
+### Configure Postman Environment for placing orders:
+After running the Login API, copy the authorization token and set it in the Authorization header for placing orders.
+
+### Run API Requests:
+You can now use the imported collection to test all available endpoints.
